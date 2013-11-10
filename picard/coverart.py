@@ -21,10 +21,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
+import os
 import json
 import re
 import traceback
 import picard.webservice
+from os import path
 from functools import partial
 from picard import config, log
 from picard.metadata import Metadata, is_front_image
@@ -167,9 +169,33 @@ def _caa_append_image_to_trylist(try_list, imagedata):
     _try_list_append_image_url(try_list, url, extras)
 
 
+def coverart_from_file (album, metadata, release):
+    albumdir = path.dirname (album.unmatched_files.files[0].filename)
+    coverartfile = None
+    for candidate in [
+            path.join (albumdir, 'cover.jpg'),
+            path.join (albumdir, 'front.jpg') ]:
+        if path.isfile (candidate):
+            coverartfile = candidate
+
+    if not coverartfile:
+        return False
+
+    data = None
+    with open (coverartfile, "rb") as f:
+        data = f.read ()
+
+    basefilename = re.sub ('/.jpg$/', '', path.basename (coverartfile))
+    metadata.add_image ('image/jpeg', data, basefilename)
+    return True
+
+
 def coverart(album, metadata, release, try_list=None):
     """ Gets all cover art URLs from the metadata and then attempts to
     download the album art. """
+
+    if coverart_from_file (album, metadata, release):
+        return
 
     # try_list will be None for the first call
     if try_list is None:
